@@ -72,13 +72,32 @@ class AfxMSGMap:
             self.MSGStructSize = 32
             self.USize = 8
 
+    def mt_rva(self):
+        ri = refinfo_t()
+        if (__EA64__):
+            ri.flags = REF_OFF64
+        else:
+            ri.flags = REF_OFF32
+        ri.target = BADADDR
+        mt = opinfo_t()
+        mt.ri = ri
+        return mt
+        
+    def mt_ascii(self):
+        ri = refinfo_t()
+        ri.flags = ASCSTR_C
+        ri.target = BADADDR
+        mt = opinfo_t()
+        mt.ri = ri
+        return mt
+        
     def AddMSGMAPStruct(self):
         name = "AFX_MSGMAP_ENTRY"
         idx = idaapi.get_struc_id(name)
         stru = idaapi.get_struc(idx)
         if (idx != BADADDR):
-            return idx
-            #idaapi.del_struc(stru)
+            #return idx
+            idaapi.del_struc(stru)
         
         idx = idaapi.add_struc(BADADDR, name)
         stru = idaapi.get_struc(idx)
@@ -109,7 +128,7 @@ class AfxMSGMap:
                 idaapi.del_struc(stru)
                 return BADADDR
                 
-            if (idaapi.add_struc_member(stru, "pfn", 24, FF_1OFF|FF_QWRD, None, 8) != 0):
+            if (idaapi.add_struc_member(stru, "pfn", 24, FF_DATA|FF_DWRD|FF_0OFF, self.mt_rva(), 8) != 0):
                 Warning("Can't AddStrucMember pfn\n")
                 idaapi.del_struc(stru)
                 return BADADDR
@@ -119,7 +138,7 @@ class AfxMSGMap:
                 idaapi.del_struc(stru)
                 return BADADDR
                 
-            if (idaapi.add_struc_member(stru, "pfn", 20, FF_1OFF|FF_DWRD, None, 4) != 0):
+            if (idaapi.add_struc_member(stru, "pfn", 20, FF_DATA|FF_DWRD|FF_0OFF, self.mt_rva(), 4) != 0):
                 Warning("Can't AddStrucMember pfn\n")
                 idaapi.del_struc(stru)
                 return BADADDR
@@ -1259,6 +1278,7 @@ class AfxMSGMap:
         pEntry = addrMsgEntry
         while(idaapi.get_dword(pEntry) != 0):
             
+            MakeUnknown(pEntry, self.MSGStructSize, DELIT_SIMPLE)
             if (MakeStructEx(pEntry, self.MSGStructSize, "AFX_MSGMAP_ENTRY") == 0):
                 print "Create AFX_MSGMAP_ENTRY failed at %X" % (pEntry)
                 return 0
@@ -1273,6 +1293,7 @@ class AfxMSGMap:
             func_startEa = self.get_pfn(pEntry)
             pfn = ida_funcs.get_func(func_startEa)
             if (pfn is None):
+                MakeUnkn(func_startEa, DELIT_SIMPLE)
                 ida_funcs.add_func(func_startEa)
                 pfn = ida_funcs.get_func(func_startEa)
                 
@@ -1293,6 +1314,7 @@ class AfxMSGMap:
             pEntry = pEntry + self.MSGStructSize
         
         #AFX_MSG_END
+        MakeUnknown(pEntry, self.MSGStructSize, DELIT_SIMPLE)
         MakeStructEx(pEntry, self.MSGStructSize, "AFX_MSGMAP_ENTRY")
         msgmapSize = pEntry - addrMsgEntry + self.MSGStructSize
         return msgmapSize
