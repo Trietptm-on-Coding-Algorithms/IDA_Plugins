@@ -1267,11 +1267,26 @@ class AfxMSGMap:
         
         return 0
     
+    def MakeOffset(self, addr):
+        if (__EA64__):
+            create_data(addr, FF_0OFF|FF_QWORD, 8, ida_idaapi.BADADDR)
+        else:
+            create_data(addr, FF_0OFF|FF_DWORD, 4, ida_idaapi.BADADDR)
+
+    def MakeAfxMSG(self, addr):
+        if (__EA64__):
+            self.MakeOffset(addr)
+            self.MakeOffset(addr+8)
+        else:
+            self.MakeOffset(addr)
+            self.MakeOffset(addr+4)
+            
     def MakeMSG_ENTRY(self, addr):
         msgmapSize = 0
         addrGetThisMessageMap = self.getAword(addr, 0)
         addrMsgEntry = self.getAword(addr, 1)
         
+        self.MakeAfxMSG(addr)
         if (Name(addr) == ("off_%lX" % (addr)) or Name(addr) == ""):
             MakeName(addr, "msgEntries_%lX" % (addr))
     
