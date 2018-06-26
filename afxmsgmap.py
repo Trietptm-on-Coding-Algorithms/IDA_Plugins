@@ -65,6 +65,8 @@ class AfxMSGMap:
         self.cmax = 0
         self.rmin = 0
         self.rmax = 0
+        self.dmin = 0
+        self.dmax = 0
         self.msg_enum = 0
         self.MSGStructSize = 24
         self.USize = 4
@@ -1179,8 +1181,10 @@ class AfxMSGMap:
             return 0
         if (idaapi.get_dword(entry + 12) > 65535):
             return 0
-        if (self.getAword(entry + 16) > 100): #Sig
-            return 0
+        Sig = self.getAword(entry + 16)
+        if (Sig > 100): #Sig
+            if (Sig < self.dmin or Sig > self.dmax): # point message
+                return 0
 
         return 1
         
@@ -1203,7 +1207,7 @@ class AfxMSGMap:
         if (self.CheckMSGEntry_attr(addrMsgEntry) == 0):
             return 0
             
-        if (self.cmax == 0 or self.rmax == 0):    
+        if (self.cmax == 0 or self.rmax == 0 or self.dmax == 0):    
             snum = ida_segment.get_segm_qty()
             
             for i in range(0, snum):
@@ -1218,13 +1222,20 @@ class AfxMSGMap:
                   self.rmin = s.start_ea
                   self.rmax = s.end_ea
 
+                if (segname == ".data"):
+                  self.dmin = s.start_ea
+                  self.dmax = s.end_ea
+
         if (self.cmin == self.cmax or self.cmax == 0):
             return 0
         if (self.rmin == self.rmax or self.rmax == 0):
             return 0
 
         if (addrGetThisMessageMap < self.cmin or addrGetThisMessageMap > self.cmax):
-            return 0
+            #如果是静态连接的, 这里直接指向父消息表地址
+            if (addrGetThisMessageMap < self.rmin or addrGetThisMessageMap > self.rmax):    
+                return 0
+
         if (addrMsgEntry < self.rmin or addrMsgEntry > self.rmax):
             return 0
 
@@ -1255,9 +1266,6 @@ class AfxMSGMap:
             
             if (self.CheckMSGEntry_attr(addrMsgEntry) == 0):
                 return 0
-
-            if (addrGetThisMessageMap < self.cmin or addrGetThisMessageMap > self.cmax):
-                return 0
             
             msgfun_addr = self.get_pfn(addrMsgEntry)
             if (msgfun_addr < self.cmin or msgfun_addr > self.cmax):
@@ -1269,9 +1277,9 @@ class AfxMSGMap:
     
     def MakeOffset(self, addr):
         if (__EA64__):
-            create_data(addr, FF_0OFF|FF_QWORD, 8, ida_idaapi.BADADDR)
+            create_data(addr, FF_0OFF|FF_REF|FF_QWORD, 8, ida_idaapi.BADADDR)
         else:
-            create_data(addr, FF_0OFF|FF_DWORD, 4, ida_idaapi.BADADDR)
+            create_data(addr, FF_0OFF|FF_REF|FF_DWORD, 4, ida_idaapi.BADADDR)
 
     def MakeAfxMSG(self, addr):
         if (__EA64__):
@@ -1546,7 +1554,7 @@ class AfxMsgMapPlugin_t(idaapi.plugin_t):
         if (self.afxmsgmap.CheckMSGMAP(address) > 0):
             self.afxmsgmap.MakeMSG_ENTRY(address)
         else:
-            msg("This is not a AFX_MSGMAP")
+            msg("This is not a AFX_MSGMAP\n")
 
     # handler for About menu
     def search_msgmap(self):
